@@ -20,6 +20,8 @@ public:
     void disconnectPlayer(int fd);
     // delete player's closed file descriptor
     void deletePlayersDescriptor(int fd);
+    // checks if players are not offline
+    void checkPlayersOnline();
 
 private:
     // clients sockets
@@ -50,6 +52,8 @@ private:
     Player *findPlayerByFd(int fd);
     // handles play again message
     void handlePlayAgain(int fd, vector <string> msgParts);
+    // handles pong message
+    void handlePong(int fd, vector <string> msgParts);
 };
 
 

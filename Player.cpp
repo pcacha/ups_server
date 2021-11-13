@@ -1,5 +1,6 @@
 #include "Player.h"
 #include <string>
+#include <chrono>
 
 using namespace std;
 
@@ -9,6 +10,10 @@ Player::Player(string _nick, int _fd) {
     nick = _nick;
     // player's file descriptor id
     fd = _fd;
-    // set active
-    active = true;
+    // set online
+    online = true;
+    // set terminated
+    terminated = false;
+    // set last pong
+    lastPongTimestamp = chrono::high_resolution_clock::now();
 }

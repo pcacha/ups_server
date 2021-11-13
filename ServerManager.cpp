@@ -9,6 +9,7 @@
 #include <iostream>
 #include "Game.h"
 #include "Player.h"
+#include <chrono>
 
 using namespace std;
 
@@ -44,6 +45,9 @@ void ServerManager::handleMessage(int fd, string msg) {
     else if(command == Constants::PLAYAGAIN) {
         cout << "Handle - play again" << endl;
         handlePlayAgain(fd, msgParts);
+    }
+    else if(command == Constants::PONG) {
+        handlePong(fd, msgParts);
     }
     else {
         cout << "Message - invalid command keyword" << endl;
@@ -96,6 +100,11 @@ void ServerManager::handleConnect(int fd, vector<string> msgParts) {
                 game->addSecondPlayer(player);
                 send(fd, SendUtils::connectOk(false));
 
+                if(!game->white->online) {
+                    // if opponent is offline, send it
+                    send(fd, SendUtils::opponentOffline());
+                }
+
                 // start game
                 game->sendGameToPlayers();
                 game->gameState = Game::GameState::IN_GAME;
@@ -103,14 +112,69 @@ void ServerManager::handleConnect(int fd, vector<string> msgParts) {
         }
         else {
             // player with this nick is registered
-            if(alreadyConnectedPlayer->active) {
+            if(alreadyConnectedPlayer->terminated) {
+                // reconnect
+                cout << "Reconnect - player reconnected" << endl;
+                alreadyConnectedPlayer->terminated = false;
+                alreadyConnectedPlayer->fd = fd;
+
+                Game *game = findPlayersGame(fd);
+
+                if(game == nullptr) {
+                    // reconnected player not in game
+                    // if player is first in room
+                    if(games.empty() || games.back()->gameState != Game::GameState::FIRST_CONNECTED) {
+                        cout << "Reconnect - player first in game" << endl;
+                        // create new game
+                        Game *game = new Game();
+                        games.push_back(game);
+                        // add player
+                        game->addFirstPlayer(alreadyConnectedPlayer);
+                        send(fd, SendUtils::connectOk(true));
+                    }
+                    else {
+                        cout << "Reconnect - player second in game" << endl;
+                        // add player to last room
+                        Game *game = games.back();
+                        game->addSecondPlayer(alreadyConnectedPlayer);
+                        send(fd, SendUtils::connectOk(false));
+
+                        if(!game->white->online) {
+                            // if opponent is offline, send it
+                            send(fd, SendUtils::opponentOffline());
+                        }
+
+                        // start game
+                        game->sendGameToPlayers();
+                        game->gameState = Game::GameState::IN_GAME;
+                    }
+                }
+                else {
+                    if(game->gameState != Game::GameState::IN_GAME) {
+                        // player in queue
+                        cout << "Reconnect - player joined queue again" << endl;
+                        send(fd, SendUtils::connectOk(true));
+                    }
+                    else {
+                        if(game->white->fd == fd) {
+                            // if player is white
+                            cout << "Reconnect - player joined game as white" << endl;
+                            send(fd, SendUtils::connectOk(true));
+                        }
+                        else {
+                            //  if player is black
+                            cout << "Reconnect - player joined game as black" << endl;
+                            send(fd, SendUtils::connectOk(false));
+                        }
+
+                        game->sendGameToPlayers();
+                    }
+                }
+            }
+            else {
                 // the nick is already used, connect failed
                 cout << "Connect - invalid - nick is already used" << endl;
                 send(fd, SendUtils::connectInvalid());
-            }
-            else {
-                // reconnect
-
             }
         }
     }
@@ -552,6 +616,11 @@ void ServerManager::handlePlayAgain(int fd, vector<string> msgParts) {
         game->addSecondPlayer(player);
         send(fd, SendUtils::playAgainOk(false));
 
+        if(!game->white->online) {
+            // if opponent is offline, send it
+            send(fd, SendUtils::opponentOffline());
+        }
+
         // start game
         game->sendGameToPlayers();
         game->gameState = Game::GameState::IN_GAME;
@@ -564,9 +633,85 @@ void ServerManager::deletePlayersDescriptor(int fd) {
 
         // if one of players has the file descriptor
         if(player->fd == fd) {
-            cout << "Client terminated - player marked as not active and socket was made empty" << endl;
+            cout << "Client terminated - player marked as terminated and socket was made empty" << endl;
             player->fd = Constants::EMPTY_FD;
-            player->active = false;
+            player->terminated = true;
+        }
+    }
+}
+
+void ServerManager::handlePong(int fd, vector <string> msgParts) {
+    if(msgParts.size() != 1) {
+        // if count of message parts is wrong close connection
+        cout << "Pong - invalid message parts count" << endl;
+        closeConnection(fd, &clientSockets);
+        return;
+    }
+
+    Player *player = findPlayerByFd(fd);
+
+    if(player == nullptr) {
+        // if player does not exits no need to execute more actions
+        return;
+    }
+
+    player->lastPongTimestamp = chrono::high_resolution_clock::now();
+
+    if(!player->online) {
+        // just when player was offline
+        player->online = true;
+        cout << "Pong - player online again" << endl;
+
+        // find player's game to notify other player
+        Game *game = findPlayersGameInGame(fd);
+
+        if(game != nullptr) {
+            // get opponent
+            Player *opponent = game->white;
+            if(opponent->fd == fd) {
+                opponent = game->black;
+            }
+
+            // send message that opponent is online again
+            cout << "Pong - player online again - opponent notified" << endl;
+            send(opponent->fd, SendUtils::opponentOnline());
+            send(fd, opponent->online ? SendUtils::opponentOnline() : SendUtils::opponentOffline());
+            game->sendGameToPlayers();
+        }
+    }
+}
+
+void ServerManager::checkPlayersOnline() {
+    // for all players
+    for(int i = 0; i < players.size(); i++) {
+        Player *player = players[i];
+
+        // just online players
+        if(player->online) {
+            // measure distinction from last pong
+            auto now = chrono::high_resolution_clock::now();
+            auto distinctionMillis = chrono::duration_cast<chrono::milliseconds>(now - player->lastPongTimestamp);
+
+            // if distinction exceeded max allowed value
+            if(distinctionMillis.count() > Constants::MAX_PONG_DELAY) {
+                player->online = false;
+                cout << "Ping - player offline" << endl;
+
+                // find player's game to notify other player
+                Game *game = findPlayersGameInGame(player->fd);
+
+                if(game != nullptr) {
+                    // get opponent
+                    Player *opponent = game->white;
+                    if(opponent->fd == player->fd) {
+                        opponent = game->black;
+                    }
+
+                    // send message that opponent is offline
+                    cout << "Ping - player offline - opponent notified" << endl;
+                    send(opponent->fd, SendUtils::opponentOffline());
+                }
+            }
         }
     }
 }

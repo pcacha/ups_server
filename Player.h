@@ -2,6 +2,7 @@
 #define UPS_SERVER_PLAYER_H
 
 #include <string>
+#include <chrono>
 
 using namespace std;
 
@@ -14,8 +15,12 @@ public:
     string nick;
     // player's file descriptor id
     int fd;
-    // represents whether player is active
-    bool active;
+    // represents whether player is online
+    bool online;
+    // represents whether client exit unexpectedly
+    bool terminated;
+    // represents timestamp of last pong
+    chrono::high_resolution_clock::time_point lastPongTimestamp;
     // constructor
     Player(string _nick, int _fd);
 };

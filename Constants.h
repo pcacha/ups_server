@@ -23,6 +23,10 @@ public:
     static const int GAMEBOARD_LENGTH = 8;
     // no descriptor assigned
     static const int EMPTY_FD = -1;
+    // ping interval
+    static const int PING_INTERVAL = 900;
+    // max delay of pong
+    static const int MAX_PONG_DELAY = 1500;
     // message start indicator
     static const string MSG_START;
     // message end indicator
@@ -53,6 +57,14 @@ public:
     static const string PLAYAGAIN;
     // draw key word
     static const string DRAW;
+    // ping key word
+    static const string PING;
+    // pong key word
+    static const string PONG;
+    // opponent online key word
+    static const string OPPONENT_ONLINE;
+    // opponent offline key word
+    static const string OPPONENT_OFFLINE;
     // max length of player name
     static const int MAX_NAME_LENGTH = 10;
     // regex describing syntax of one message

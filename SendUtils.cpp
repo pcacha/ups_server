@@ -35,3 +35,15 @@ string SendUtils::playAgainOk(bool playerWhite) {
     // player is black
     return result + Constants::PLAYER_BLACK + Constants::MSG_END;
 }
+
+string SendUtils::ping() {
+    return Constants::MSG_START + Constants::PING + Constants::MSG_END;
+}
+
+string SendUtils::opponentOnline() {
+    return Constants::MSG_START + Constants::OPPONENT_ONLINE + Constants::MSG_END;
+}
+
+string SendUtils::opponentOffline() {
+    return Constants::MSG_START + Constants::OPPONENT_OFFLINE + Constants::MSG_END;
+}

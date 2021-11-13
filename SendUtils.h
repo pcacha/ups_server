@@ -21,6 +21,12 @@ public:
     static string moveFailed();
     // returns play again ok message
     static string playAgainOk(bool playerWhite);
+    // returs ping message
+    static string ping();
+    // returns opponent online message
+    static string opponentOnline();
+    // returns opponent offline message
+    static string opponentOffline();
 };
 
 

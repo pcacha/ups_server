@@ -10,7 +10,10 @@
 #include "Constants.h"
 #include "ServerManager.h"
 #include "main.h"
+#include "SendUtils.h"
 #include <regex>
+#include <thread>
+#include <chrono>
 
 using namespace std;
 
@@ -18,6 +21,7 @@ using namespace std;
 fd_set clientSockets;
 // server manager
 ServerManager serverManager(clientSockets);
+int serverSocket;
 
 /*
  * Binds server socket to port and starts listening on it
@@ -75,11 +79,35 @@ void send(int fd, string msg) {
     if(FD_ISSET(fd, &clientSockets)) {
         // sends message to client
         send(fd, msg.c_str(), msg.length(), 0);
-        cout << "Send - fd: " << fd << " msg: " + msg << endl;
+        if(msg.find(Constants::PING) == string::npos) {
+            cout << "Send - fd: " << fd << " msg: " + msg << endl;
+        }
     }
     else {
         // cannot send message
         cout << "Send Failed - can not send message (missing fd) to fd: " << fd << " msg: " + msg << endl;
+    }
+}
+
+// neverending ping system
+void pingSystem(int param) {
+    chrono::milliseconds sleepTime(Constants::PING_INTERVAL);
+
+    // neverending loop
+    while(true) {
+        // for all file descriptors
+        for(int fd = 3; fd < FD_SETSIZE; fd++) {
+            // if it is client socket
+            if(FD_ISSET(fd, &clientSockets) && fd != serverSocket) {
+                // ping client
+                send(fd, SendUtils::ping());
+            }
+        }
+
+        // check if players are online
+        serverManager.checkPlayersOnline();
+
+        this_thread::sleep_for(sleepTime);
     }
 }
 
@@ -90,13 +118,15 @@ void send(int fd, string msg) {
 int main() {
 
     // binding to port and start listening
-    int serverSocket;
     struct sockaddr_in myAddr;
     setupServer(serverSocket, &myAddr, 9999);
 
     // deleting set of descriptors and adding server socket
     FD_ZERO(&clientSockets);
     FD_SET(serverSocket, &clientSockets);
+
+    // start of ping system
+    thread pinger(pingSystem, 0);
 
     // neverending loop
     while(true) {
@@ -172,34 +202,6 @@ int main() {
                     }
                     */
 
-
-                    /*
-                    if(bytesAvailable > 0 && bytesAvailable <= Constants::MAX_MSG_LENGTH) {
-                        char dataChars[bytesAvailable];
-                        read(fd, &dataChars, bytesAvailable);
-                        string dataString = dataChars;
-                        cout << "Socket - data on socket: " + dataString << endl;
-
-                        size_t endIdx = dataString.find(Constants::MSG_END[0]);
-                        if (endIdx == string::npos || dataString[0] != Constants::MSG_START[0]) {
-                            closeConnection(fd, &clientSockets);
-                        }
-
-                        string msg = dataString.substr(0, endIdx + 1);
-                        if(msg.length() >= Constants::MIN_MSG_LENGTH) {
-                            cout << "Received - msg: " + msg << endl;
-                            serverManager.handleMessage(fd, msg);
-                        }
-                        else {
-                            closeConnection(fd, &clientSockets);
-                        }
-                    }
-                    else {
-                        closeConnection(fd, &clientSockets);
-                    }
-                    */
-
-
                     // bytes available
                     if(bytesAvailable > 0) {
                         // if data are too long, close connection
@@ -212,7 +214,10 @@ int main() {
                         char dataChars[bytesAvailable];
                         read(fd, &dataChars, bytesAvailable);
                         string dataString = dataChars;
-                        cout << "Socket - data on socket: " + dataString << endl;
+                        if(dataString.find(Constants::PONG) == string::npos) {
+                            cout << "Socket - data on socket: " + dataString << endl;
+                        }
+
 
                         // divide data based on regex
                         regex reg(Constants::MSG_REGEX);
@@ -231,7 +236,9 @@ int main() {
 
                             // check message length
                             if (msg.length() >= Constants::MIN_MSG_LENGTH && msg.length() <= Constants::MAX_MSG_LENGTH) {
-                                cout << "Received - msg: " << msg << endl;
+                                if(msg.find(Constants::PONG) == string::npos) {
+                                    cout << "Received - msg: " << msg << endl;
+                                }
                                 serverManager.handleMessage(fd, msg);
                             }
                             else {
