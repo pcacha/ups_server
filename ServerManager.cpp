@@ -686,12 +686,12 @@ void ServerManager::checkPlayersOnline() {
     for(int i = 0; i < players.size(); i++) {
         Player *player = players[i];
 
+        // measure distinction from last pong
+        auto now = chrono::high_resolution_clock::now();
+        auto distinctionMillis = chrono::duration_cast<chrono::milliseconds>(now - player->lastPongTimestamp);
+
         // just online players
         if(player->online) {
-            // measure distinction from last pong
-            auto now = chrono::high_resolution_clock::now();
-            auto distinctionMillis = chrono::duration_cast<chrono::milliseconds>(now - player->lastPongTimestamp);
-
             // if distinction exceeded max allowed value
             if(distinctionMillis.count() > Constants::MAX_PONG_DELAY) {
                 player->online = false;
@@ -710,6 +710,61 @@ void ServerManager::checkPlayersOnline() {
                     // send message that opponent is offline
                     cout << "Ping - player offline - opponent notified" << endl;
                     send(opponent->fd, SendUtils::opponentOffline());
+                }
+            }
+        }
+        else {
+            // if player is offline, check if he did not exceed the max left time
+            if(distinctionMillis.count() > Constants::MAX_LEFT_TIME) {
+                // player is offline for too long
+                cout << "Ping - player offline for too long" << endl;
+
+                // find player's game
+                Game *game = findPlayersGame(player->fd);
+                if(game == nullptr) {
+                    cout << "Ping - player not in game, deleted from players" << endl;
+                    players.erase(players.begin() + findPlayerIdx(player));
+                    delete player;
+                    i--;
+                }
+                else {
+                    // for white player
+                    if(game->white->fd == player->fd) {
+                        cout << "Ping - player white leaves game - offline too long" << endl;
+
+                        // setup game and send it to players
+                        if(game->black != nullptr) {
+                            cout << "Ping - game end - player black is the winner" << endl;
+                            game->winner = game->black;
+                            game->playing = nullptr;
+                            game->gameState = Game::GameState::FINISHED;
+                            game->sendGameToPlayers(false, true);
+                        }
+                    }
+                    else {
+                        // for black player
+                        cout << "Ping - player black" << endl;
+
+                        // setup game and send it to players
+                        if(game->white != nullptr) {
+                            cout << "Ping - game end - player white is the winner" << endl;
+                            game->winner = game->white;
+                            game->playing = nullptr;
+                            game->gameState = Game::GameState::FINISHED;
+                            game->sendGameToPlayers(true, false);
+                        }
+                    }
+
+                    cout << "Ping - deleting player" << endl;
+                    // remove player from vector
+                    players.erase(players.begin() + findPlayerIdx(player));
+                    delete player;
+                    i--;
+
+                    cout << "Ping - deleting game" << endl;
+                    // remove game from vector
+                    games.erase(games.begin() + findGameIdx(game));
+                    delete game;
                 }
             }
         }
