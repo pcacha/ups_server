@@ -27,6 +27,8 @@ public:
     static const int PING_INTERVAL = 900;
     // max delay of pong
     static const int MAX_PONG_DELAY = 1500;
+    // statistical data file name
+    static const string STAT_DATA_FILE_NAME;
     // message start indicator
     static const string MSG_START;
     // message end indicator

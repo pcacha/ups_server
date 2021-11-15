@@ -14,6 +14,8 @@
 #include <regex>
 #include <thread>
 #include <chrono>
+#include <fstream>
+#include <signal.h>
 
 using namespace std;
 
@@ -22,6 +24,13 @@ fd_set clientSockets;
 // server manager
 ServerManager serverManager(clientSockets);
 int serverSocket;
+
+// statistical data
+int bytesCount = 0;
+int messagesCount = 0;
+int connectionsCount = 0;
+int closedConnectionsCount = 0;
+chrono::high_resolution_clock::time_point programStartTime = chrono::high_resolution_clock::now();
 
 /*
  * Binds server socket to port and starts listening on it
@@ -72,6 +81,7 @@ void closeConnectionWithoutRemovingPlayer(int fd, fd_set *clientSockets) {
     // close connection and delete appropriate file descriptor
     close(fd);
     FD_CLR(fd, clientSockets);
+    closedConnectionsCount++;
     cout << "Client terminated - closing socket - fd: " << fd << endl;
 }
 
@@ -111,11 +121,33 @@ void pingSystem(int param) {
     }
 }
 
+// at the end of program print statistical data
+void printStatisticalData(int sig) {
+    // measure program uptime
+    auto now = chrono::high_resolution_clock::now();
+    auto duration = chrono::duration_cast<chrono::seconds>(now - programStartTime);
+    int durationSeconds = duration.count();
+
+    // print data
+    fstream dataFile(Constants::STAT_DATA_FILE_NAME, ios::out);
+    dataFile << "Transported bytes count: " << bytesCount << endl;
+    dataFile << "Transported messages count: " << messagesCount << endl;
+    dataFile << "Connections count: " << connectionsCount << endl;
+    dataFile << "Unexpectedly closed connections count: " << closedConnectionsCount << endl;
+    dataFile << "Uptime in seconds: " << durationSeconds << endl;
+
+    // close file
+    dataFile.close();
+}
+
 /*
  * Entry point
  * Server starts listening on port
  */
 int main() {
+
+    // bind metho that  prints statistical data to program termination
+    signal(SIGINT, printStatisticalData);
 
     // binding to port and start listening
     struct sockaddr_in myAddr;
@@ -151,6 +183,7 @@ int main() {
                     auto addrLength = sizeof(sockaddr);
                     int clientSocket = accept(serverSocket, (struct sockaddr *) &peerAddr, (socklen_t *) &addrLength);
                     FD_SET(clientSocket, &clientSockets);
+                    connectionsCount++;
                     cout << "Connect - new client connected - fd: " << clientSocket << endl;
                 }
                 else {
@@ -204,6 +237,8 @@ int main() {
 
                     // bytes available
                     if(bytesAvailable > 0) {
+                        bytesCount += bytesAvailable;
+
                         // if data are too long, close connection
                         if(bytesAvailable > Constants::MAX_MSG_BATCH_LENGTH) {
                             cout << "Socket - length of batched data exceeded max length" << endl;
@@ -239,6 +274,7 @@ int main() {
                                 if(msg.find(Constants::PONG) == string::npos) {
                                     cout << "Received - msg: " << msg << endl;
                                 }
+                                messagesCount++;
                                 serverManager.handleMessage(fd, msg);
                             }
                             else {

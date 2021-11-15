@@ -3,6 +3,7 @@
 
 using namespace std;
 
+const string Constants::STAT_DATA_FILE_NAME = "statistics.txt";
 const string Constants::MSG_START = "$";
 const string Constants::MSG_END = "#";
 const string Constants::MSG_SEPARATOR = "|";
