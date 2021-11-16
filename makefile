@@ -14,3 +14,5 @@ clean:
 	-rm -f *.o
 
 # make -f makefile
+# make clean
+# netstat -tulpn

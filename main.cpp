@@ -16,6 +16,7 @@
 #include <chrono>
 #include <fstream>
 #include <signal.h>
+#include <arpa/inet.h>
 
 using namespace std;
 
@@ -32,18 +33,43 @@ int connectionsCount = 0;
 int closedConnectionsCount = 0;
 chrono::high_resolution_clock::time_point programStartTime = chrono::high_resolution_clock::now();
 
+int port;
+char *ipAddress;
+
+bool stringIsNumber(string string);
+
 /*
  * Binds server socket to port and starts listening on it
  */
-void setupServer(int &serverSocket, struct sockaddr_in *myAddr, int port) {
+void setupServer(int &serverSocket, struct sockaddr_in *myAddr) {
     // setup socket
     serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+
+    if(serverSocket < 0) {
+        cout << "Bind - error - cannot create socket" << endl;
+        exit(EXIT_FAILURE);
+    }
 
     // setup port
     memset(myAddr, 0, sizeof(struct sockaddr_in));
     myAddr->sin_family = AF_INET;
     myAddr->sin_port = htons(port);
-    myAddr->sin_addr.s_addr = INADDR_ANY;
+
+    if(myAddr->sin_port <= 0) {
+        cout << "Bind - error - bad port" << endl;
+        exit(EXIT_FAILURE);
+    }
+    cout << "Bind - port - " << port << endl;
+
+    myAddr->sin_addr.s_addr = inet_addr(ipAddress);
+    //myAddr->sin_addr.s_addr = INADDR_ANY;
+
+
+    if(myAddr->sin_addr.s_addr <= 0 || myAddr->sin_addr.s_addr == 4294967295) {
+        cout << "Bind - error - bad ip address" << endl;
+        exit(EXIT_FAILURE);
+    }
+    cout << "Bind - ip address - " << ipAddress << endl;
 
     // bind socket to port
     int return_value = bind(serverSocket, (struct sockaddr *) myAddr, sizeof(struct sockaddr_in));
@@ -144,14 +170,31 @@ void printStatisticalData(int sig) {
  * Entry point
  * Server starts listening on port
  */
-int main() {
+int main(int argc, char *argv[]) {
+    if(argc != 3 || !stringIsNumber(argv[2])) {
+        cout << "Start - wrong arguments count or port is not a number" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    ipAddress = argv[1];
+    port = stoi(argv[2]);
+
+    if(port < 0 || port > 65535) {
+        cout << "Start - port has bad range" << endl;
+        exit(EXIT_FAILURE);
+    }
+
+    if(strcmp(ipAddress, "localhost") == 0 || strcmp(ipAddress, "Localhost") == 0 || strcmp(ipAddress, "LOCALHOST") == 0) {
+        cout << "Start - localhost transformed to 127.0.0.1" << endl;
+        ipAddress = strdup("127.0.0.1");
+    }
 
     // bind metho that  prints statistical data to program termination
     signal(SIGINT, printStatisticalData);
 
     // binding to port and start listening
     struct sockaddr_in myAddr;
-    setupServer(serverSocket, &myAddr, 9999);
+    setupServer(serverSocket, &myAddr);
 
     // deleting set of descriptors and adding server socket
     FD_ZERO(&clientSockets);
@@ -293,4 +336,27 @@ int main() {
     }
 
     return EXIT_SUCCESS;
+}
+
+// determines if string is number
+bool stringIsNumber(string value) {
+    // for all digits
+    for(int i = 0; i < value.length(); i++) {
+        bool validChar = false;
+
+        // check
+        for(int j = 0; j < 10; j++) {
+
+            if(value[i] == to_string(j)[0]) {
+                validChar = true;
+                break;
+            }
+        }
+
+        if(!validChar) {
+            return false;
+        }
+    }
+
+    return true;
 }
