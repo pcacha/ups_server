@@ -177,7 +177,7 @@ int main(int argc, char *argv[]) {
     ipAddress = argv[1];
     port = stoi(argv[2]);
 
-    if(port < 0 || port > 65535) {
+    if(port < 1024 || port > 65535) {
         cout << "Start - port has bad range" << endl;
         exit(EXIT_FAILURE);
     }
