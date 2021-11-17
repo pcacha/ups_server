@@ -36,8 +36,6 @@ chrono::high_resolution_clock::time_point programStartTime = chrono::high_resolu
 int port;
 char *ipAddress;
 
-bool stringIsNumber(string string);
-
 /*
  * Binds server socket to port and starts listening on it
  */
