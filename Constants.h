@@ -24,11 +24,13 @@ public:
     // no descriptor assigned
     static const int EMPTY_FD = -1;
     // ping interval
-    static const int PING_INTERVAL = 900;
+    // static const int PING_INTERVAL = 900;
+    static const int PING_INTERVAL = 40000;
     // max delay of pong [ms]
-    static const int MAX_PONG_DELAY = 1500;
-    // max left time [ms] == 10 minutes
-    static const int MAX_LEFT_TIME = 600000;
+    // static const int MAX_PONG_DELAY = 1500;
+    static const int MAX_PONG_DELAY = 60000;
+    // max left time [ms] == 60 minutes
+    static const int MAX_LEFT_TIME = 3600000;
     // statistical data file name
     static const string STAT_DATA_FILE_NAME;
     // message start indicator

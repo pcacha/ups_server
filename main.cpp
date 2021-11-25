@@ -284,6 +284,7 @@ int main(int argc, char *argv[]) {
                         if(bytesAvailable > Constants::MAX_MSG_BATCH_LENGTH) {
                             cout << "Socket - length of batched data exceeded max length" << endl;
                             closeConnection(fd, &clientSockets);
+                            continue;
                         }
 
                         // read all data
@@ -304,6 +305,7 @@ int main(int argc, char *argv[]) {
                         if(matches.empty()) {
                             cout << "Regex - no message  in data" << endl;
                             closeConnection(fd, &clientSockets);
+                            continue;
                         }
 
                         // foreach message in data
@@ -321,6 +323,7 @@ int main(int argc, char *argv[]) {
                             else {
                                 cout << "Message - invalid length" << endl;
                                 closeConnection(fd, &clientSockets);
+                                continue;
                             }
                         }
                     }
