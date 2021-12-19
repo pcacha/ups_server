@@ -292,7 +292,8 @@ int main(int argc, char *argv[]) {
                         read(fd, &dataChars, bytesAvailable);
                         string dataString = dataChars;
                         if(dataString.find(Constants::PONG) == string::npos) {
-                            cout << "Socket - data on socket: " + dataString << endl;
+                            // TODO
+                            // cout << "Socket - data on socket: " + dataString << endl;
                         }
 
 
