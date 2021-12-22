@@ -96,7 +96,6 @@ void Game::sendGameToPlayers(bool sendWhite, bool sendBlack) {
     }
     if(sendBlack && black->fd != Constants::EMPTY_FD) {
         // send(black->fd, SendUtils::sendGame(white->nick, playingNick, winnerNick, getInverseGameboardString()));
-        // TODO
         send(black->fd, SendUtils::sendGame(white->nick, playingNick, winnerNick, getGameboardString(gameboard)));
     }
 }

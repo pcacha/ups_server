@@ -48,6 +48,13 @@ void setupServer(int &serverSocket, struct sockaddr_in *myAddr) {
         exit(EXIT_FAILURE);
     }
 
+    int on = 1;
+
+    if(setsockopt(serverSocket, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) < 0) {
+        cout << "Bind - error - cannot create socket" << endl;
+        exit(EXIT_FAILURE);
+    }
+
     // setup port
     memset(myAddr, 0, sizeof(struct sockaddr_in));
     myAddr->sin_family = AF_INET;
@@ -63,7 +70,7 @@ void setupServer(int &serverSocket, struct sockaddr_in *myAddr) {
     //myAddr->sin_addr.s_addr = INADDR_ANY;
 
 
-    if(myAddr->sin_addr.s_addr <= 0 || myAddr->sin_addr.s_addr == 4294967295) {
+    if(myAddr->sin_addr.s_addr < 0 || myAddr->sin_addr.s_addr == 4294967295) {
         cout << "Bind - error - bad ip address" << endl;
         exit(EXIT_FAILURE);
     }
@@ -177,7 +184,7 @@ int main(int argc, char *argv[]) {
     ipAddress = argv[1];
     port = stoi(argv[2]);
 
-    if(port < 1024 || port > 65535) {
+    if(port < 0 || port > 65535) {
         cout << "Start - port has bad range" << endl;
         exit(EXIT_FAILURE);
     }
@@ -292,7 +299,6 @@ int main(int argc, char *argv[]) {
                         read(fd, &dataChars, bytesAvailable);
                         string dataString = dataChars;
                         if(dataString.find(Constants::PONG) == string::npos) {
-                            // TODO
                             // cout << "Socket - data on socket: " + dataString << endl;
                         }
 

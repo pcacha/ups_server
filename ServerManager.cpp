@@ -220,7 +220,6 @@ void ServerManager::handleMove(int fd, vector<string> msgParts) {
         player = game->black;
         opponent = game->white;
         // make coordinates inverse
-        // TODO
         // makeCoordinatesInverse(sourceY, sourceX, goalY, goalX);
     }
 
